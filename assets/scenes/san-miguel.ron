@@ -1,0 +1,10 @@
+(
+    model_path: "assets/large_obj/san-miguel/san-miguel.obj",
+    camera: (
+        eye: (22.0, 1.5, 13.0),
+        dir: (-0.6476484, 0.0, -0.7619393),
+        fov: 90.0,
+        exposure: 0.0,
+    ),
+    sun_direction: (0.22, -1.0, -0.2),
+)
