@@ -74,6 +74,13 @@ pub fn uniform_sample_disc(urand: Vec2) -> Vec3A {
     Vec3A::new(x, y, 0.0)
 }
 
+pub fn uniform_sample_cone(urand: Vec2, cos_theta_max: f32) -> Vec3A {
+    let cos_theta = (1.0 - urand.x) + urand.x * cos_theta_max;
+    let sin_theta = (1.0 - cos_theta * cos_theta).clamp(0.0, 1.0).sqrt();
+    let phi = urand.y * TAU;
+    return vec3a(sin_theta * phi.cos(), sin_theta * phi.sin(), cos_theta);
+}
+
 pub fn get_f0(reflectance: f32, metallic: f32, base_color: Vec3A) -> Vec3A {
     0.16 * reflectance * reflectance * (1.0 - metallic) + base_color * metallic
 }

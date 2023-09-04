@@ -4,13 +4,11 @@ use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    nishita::Nishita,
     sampling::{
         brdf_sample, build_orthonormal_basis, cosine_sample_hemisphere, hash_noise,
-        uniform_sample_disc,
+        uniform_sample_cone,
     },
-    sky::{sky, SUN_ANGULAR_DIAMETER_DEGREES},
-    sky2::{self, AtmosphereParameters},
+    sky::SUN_ANGULAR_DIAMETER,
     tonemapping::tony_mc_mapface,
     triangle::Triangle,
     Hit, Material, Ray, Scene,
@@ -119,16 +117,17 @@ where
     let seed = (recursion_depth + 1) * (sample_n + 1);
     let mut col = Vec3A::ZERO;
     let sun_color = vec3a(1.0, 0.73, 0.46) * 1000000.0;
+    let sky_color = (vec3a(0.875, 0.95, 0.995) * 2.0).powf(2.2);
     let init_sun_dir = scene.sun_direction.normalize_or_zero();
 
-    // Make the sun a disc
-    let disc_direction = uniform_sample_disc(vec2(
+    let nee = 1.0 - SUN_ANGULAR_DIAMETER.cos();
+    let sun_rnd = vec2(
         hash_noise(ufragcoord, seed + 10000),
         hash_noise(ufragcoord, seed + 20000),
-    )) * SUN_ANGULAR_DIAMETER_DEGREES;
-    let sun_dir = (init_sun_dir + disc_direction).normalize();
-
-    let nee = 1.0 - SUN_ANGULAR_DIAMETER_DEGREES.cos();
+    );
+    let sun_basis = build_orthonormal_basis(init_sun_dir);
+    let sun_dir =
+        (sun_basis * uniform_sample_cone(sun_rnd, (SUN_ANGULAR_DIAMETER * 0.5).cos())).normalize();
 
     let (hit, tri) = traverse_fn(&ray);
 
@@ -139,14 +138,10 @@ where
         let tangent_to_world_transpose = tangent_to_world.transpose();
         let primary_hitp =
             ray.origin + ray.direction * hit.distance * DEPTH_BIAS + surface_normal * NORMAL_BIAS;
-        let v = (ray.origin - primary_hitp).normalize(); //
+        let v = (ray.origin - primary_hitp).normalize();
 
         let hit_sun = traverse_fn(&Ray::new(primary_hitp, -sun_dir, 0.0, f32::MAX)).0;
         if hit_sun.distance >= f32::MAX {
-            // Nishita doesn't have a sun disk
-            //let sun_color = sky(-sun_dir, -init_sun_dir) * nee;
-            //let sun_color =
-            //    AtmosphereParameters::red_sunset().render(ray.direction, -init_sun_dir) * nee;
             col += (sun_color
                 * nee
                 * primary_mat.base_color
@@ -200,14 +195,12 @@ where
             col += (spec_hit_color * brdf_sample.value_over_pdf).max(Vec3A::ZERO);
         }
     } else {
-        //col += Nishita::default().render(ray.direction, -init_sun_dir);
-
+        col += sky_color;
         // Sun results in fireflies. Clamp to avoid randomly sampling super high values.
         // TODO, don't want to do this when sampling 1st bounce specular.
-        //col += sky(ray.direction, -init_sun_dir).clamp(Vec3A::ZERO, Vec3A::splat(50.0));
-        col += AtmosphereParameters::red_sunset2()
-            .render(ray.direction, -init_sun_dir)
-            .clamp(Vec3A::ZERO, Vec3A::splat(100.0));
+        //Sky::red_sunset2()
+        //    .render(ray.direction, -init_sun_dir)
+        //    .clamp(Vec3A::ZERO, Vec3A::splat(100.0));
     }
 
     col

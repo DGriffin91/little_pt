@@ -12,11 +12,9 @@ use crate::{aabb::Aabb, renderer::render, triangle::Triangle, voxel_bvh::VoxelGr
 pub mod aabb;
 pub mod bvh;
 pub mod d3_image;
-pub mod nishita;
 pub mod renderer;
 pub mod sampling;
 pub mod sky;
-pub mod sky2;
 pub mod tonemapping;
 pub mod triangle;
 pub mod voxel_bvh;
