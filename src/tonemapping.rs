@@ -88,33 +88,3 @@ pub fn get_tony_data() -> &'static Image {
 
     unsafe { &TONY_DATA.as_ref().unwrap() }
 }
-
-pub mod save_tony_as_bytes {
-    use glam::vec3;
-    use image::{io::Reader as ImageReader, DynamicImage, ImageFormat};
-
-    use crate::sampling::powsafe;
-
-    use super::tony_mc_mapface;
-
-    pub fn test_tony2() {
-        let img = ImageReader::open("dragonscene_ap0_v01_1001.exr")
-            .unwrap()
-            .decode()
-            .unwrap();
-
-        let mut rgb = img.into_rgb32f();
-
-        for rgb in rgb.pixels_mut() {
-            let proc = tony_mc_mapface(vec3(rgb.0[0], rgb.0[1], rgb.0[2]).into()).into();
-            //let proc =
-            //    somewhat_boring_display_transform(vec3(rgb.0[0], rgb.0[1], rgb.0[2]).into()).into();
-            rgb.0 = (powsafe(proc, 1.0 / 2.2)).into();
-        }
-
-        DynamicImage::from(rgb)
-            .into_rgb8()
-            .save_with_format("dragonscene_ap0_v01_1001_tony.png", ImageFormat::Png)
-            .unwrap();
-    }
-}

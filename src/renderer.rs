@@ -8,7 +8,7 @@ use crate::{
         brdf_sample, build_orthonormal_basis, cosine_sample_hemisphere, hash_noise,
         uniform_sample_cone,
     },
-    sky::SUN_ANGULAR_DIAMETER,
+    sky::{Sky, SUN_ANGULAR_DIAMETER},
     tonemapping::tony_mc_mapface,
     triangle::Triangle,
     Hit, Material, Ray, Scene,
@@ -117,7 +117,7 @@ where
     let seed = (recursion_depth + 1) * (sample_n + 1);
     let mut col = Vec3A::ZERO;
     let sun_color = vec3a(1.0, 0.73, 0.46) * 1000000.0;
-    let sky_color = (vec3a(0.875, 0.95, 0.995) * 2.0).powf(2.2);
+    //let sky_color = (vec3a(0.875, 0.95, 0.995) * 2.0).powf(2.2);
     let init_sun_dir = scene.sun_direction.normalize_or_zero();
 
     let nee = 1.0 - SUN_ANGULAR_DIAMETER.cos();
@@ -195,12 +195,12 @@ where
             col += (spec_hit_color * brdf_sample.value_over_pdf).max(Vec3A::ZERO);
         }
     } else {
-        col += sky_color;
+        //col += sky_color;
         // Sun results in fireflies. Clamp to avoid randomly sampling super high values.
         // TODO, don't want to do this when sampling 1st bounce specular.
-        //Sky::red_sunset2()
-        //    .render(ray.direction, -init_sun_dir)
-        //    .clamp(Vec3A::ZERO, Vec3A::splat(100.0));
+        col += Sky::red_sunset2()
+            .render(ray.direction, -init_sun_dir)
+            .clamp(Vec3A::ZERO, Vec3A::splat(100.0));
     }
 
     col

@@ -185,7 +185,6 @@ impl Bvh {
         hit
     }
 
-    // Should really only be used with min_prims=1 max_prims=1
     pub fn traverse_recursive(&self, ray: &Ray, node_index: usize, indices: &mut Vec<usize>) {
         let node = &self.nodes[node_index];
 
