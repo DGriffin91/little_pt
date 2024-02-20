@@ -22,26 +22,16 @@ pub fn hash_noise(ufrag_coord: UVec2, frame: u32) -> f32 {
     unormf(urnd)
 }
 
+// https://jcgt.org/published/0006/01/01/paper.pdf
 pub fn build_orthonormal_basis(n: Vec3) -> Mat3 {
-    let b1: Vec3;
-    let b2: Vec3;
-
-    if n.z < 0.0 {
-        let a = 1.0 / (1.0 - n.z);
-        let b = n.x * n.y * a;
-        b1 = vec3(1.0 - n.x * n.x * a, -b, n.x);
-        b2 = vec3(b, n.y * n.y * a - 1.0, -n.y);
-    } else {
-        let a = 1.0 / (1.0 + n.z);
-        let b = -n.x * n.y * a;
-        b1 = vec3(1.0 - n.x * n.x * a, b, -n.x);
-        b2 = vec3(b, 1.0 - n.y * n.y * a, -n.y);
-    }
+    let sign = n.z.signum();
+    let a = -1.0 / (sign + n.z);
+    let b = n.x * n.y * a;
 
     mat3(
-        vec3(b1.x, b1.y, b1.z),
-        vec3(b2.x, b2.y, b2.z),
-        vec3(n.x, n.y, n.z),
+        vec3(1.0 + sign * n.x * n.x * a, sign * b, -sign * n.x),
+        vec3(b, sign + n.y * n.y * a, -n.y),
+        n,
     )
 }
 
