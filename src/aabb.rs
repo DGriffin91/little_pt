@@ -1,33 +1,33 @@
 use std::ops::BitAnd;
 
-use glam::Vec3A;
+use glam::Vec3;
 
 use crate::Ray;
 
 #[derive(Default, Clone, Copy, Debug)]
 pub struct Aabb {
-    pub min: Vec3A,
-    pub max: Vec3A,
+    pub min: Vec3,
+    pub max: Vec3,
 }
 
 impl Aabb {
-    pub fn new(min: Vec3A, max: Vec3A) -> Self {
+    pub fn new(min: Vec3, max: Vec3) -> Self {
         Self { min, max }
     }
 
-    pub fn from_point(point: Vec3A) -> Self {
+    pub fn from_point(point: Vec3) -> Self {
         Self {
             min: point,
             max: point,
         }
     }
 
-    pub fn contains_point(&self, point: Vec3A) -> bool {
+    pub fn contains_point(&self, point: Vec3) -> bool {
         (point.cmpge(self.min).bitand(point.cmple(self.max))).all()
     }
 
     #[inline]
-    pub fn extend(&mut self, point: Vec3A) -> &mut Self {
+    pub fn extend(&mut self, point: Vec3) -> &mut Self {
         self.extend_aabb(&Self::from_point(point))
     }
 
@@ -46,12 +46,12 @@ impl Aabb {
     }
 
     #[inline]
-    pub fn diagonal(&self) -> Vec3A {
+    pub fn diagonal(&self) -> Vec3 {
         self.max - self.min
     }
 
     #[inline]
-    pub fn center(&self) -> Vec3A {
+    pub fn center(&self) -> Vec3 {
         (self.max + self.min) * 0.5
     }
 
@@ -88,8 +88,8 @@ impl Aabb {
 
     pub fn empty() -> Self {
         Self {
-            min: Vec3A::new(f32::MAX, f32::MAX, f32::MAX),
-            max: Vec3A::new(f32::MIN, f32::MIN, f32::MIN),
+            min: Vec3::new(f32::MAX, f32::MAX, f32::MAX),
+            max: Vec3::new(f32::MIN, f32::MIN, f32::MIN),
         }
     }
 

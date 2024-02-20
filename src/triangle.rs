@@ -1,13 +1,13 @@
-use glam::{vec2, Vec2, Vec3A};
+use glam::{vec2, Vec2, Vec3};
 use std::f32::INFINITY;
 
 use crate::Ray;
 
 #[derive(Clone, Copy, Default)]
-pub struct Triangle(pub [Vec3A; 3]);
+pub struct Triangle(pub [Vec3; 3]);
 
 impl Triangle {
-    pub fn compute_normal(&self) -> Vec3A {
+    pub fn compute_normal(&self) -> Vec3 {
         let v1 = self.0[1] - self.0[0];
         let v2 = self.0[2] - self.0[0];
         v1.cross(v2).normalize()

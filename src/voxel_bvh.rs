@@ -1,4 +1,4 @@
-use glam::{IVec3, UVec3, Vec3A};
+use glam::{IVec3, UVec3, Vec3};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::{aabb::Aabb, bvh::Bvh, triangle::Triangle, Hit, Ray};
@@ -6,13 +6,13 @@ use crate::{aabb::Aabb, bvh::Bvh, triangle::Triangle, Hit, Ray};
 pub struct VoxelGrid {
     pub voxels: Vec<Bvh>,
     pub aabb: Aabb,
-    pub aabb_size: Vec3A,
-    pub voxel_size: Vec3A,
+    pub aabb_size: Vec3,
+    pub voxel_size: Vec3,
     pub resolution: UVec3,
 }
 
 impl VoxelGrid {
-    pub fn build(aabbs: &[Aabb], centers: &[Vec3A], resolution: UVec3) -> VoxelGrid {
+    pub fn build(aabbs: &[Aabb], centers: &[Vec3], resolution: UVec3) -> VoxelGrid {
         let mut gridaabb = Aabb::empty();
         for aabb in aabbs.iter() {
             gridaabb.extend_aabb(aabb);
@@ -21,7 +21,7 @@ impl VoxelGrid {
         let aabb_size = gridaabb.diagonal();
         let mut grid = VoxelGrid {
             aabb_size,
-            voxel_size: aabb_size / resolution.as_vec3a(),
+            voxel_size: aabb_size / resolution.as_vec3(),
             aabb: gridaabb,
             voxels: Vec::new(),
             resolution,
@@ -81,9 +81,9 @@ impl VoxelGrid {
     }
 
     pub fn pos_to_aabb(&self, pos: UVec3) -> Aabb {
-        let res = self.resolution.as_vec3a();
-        let p1 = pos.as_vec3a() / res;
-        let p2 = (pos + UVec3::ONE).as_vec3a() / res;
+        let res = self.resolution.as_vec3();
+        let p1 = pos.as_vec3() / res;
+        let p2 = (pos + UVec3::ONE).as_vec3() / res;
         let diag = self.aabb.diagonal();
         Aabb {
             min: p1 * diag + self.aabb.min,
@@ -91,13 +91,13 @@ impl VoxelGrid {
         }
     }
 
-    pub fn world_pos_to_fvoxel_pos(&self, world_pos: Vec3A) -> Vec3A {
-        ((world_pos - self.aabb.min) / self.aabb_size) * self.resolution.as_vec3a()
+    pub fn world_pos_to_fvoxel_pos(&self, world_pos: Vec3) -> Vec3 {
+        ((world_pos - self.aabb.min) / self.aabb_size) * self.resolution.as_vec3()
     }
 
-    pub fn world_pos_to_fvoxel_pos_clamp(&self, world_pos: Vec3A) -> Vec3A {
-        ((world_pos - self.aabb.min) / self.aabb_size).clamp(Vec3A::ZERO, Vec3A::ONE)
-            * self.resolution.as_vec3a()
+    pub fn world_pos_to_fvoxel_pos_clamp(&self, world_pos: Vec3) -> Vec3 {
+        ((world_pos - self.aabb.min) / self.aabb_size).clamp(Vec3::ZERO, Vec3::ONE)
+            * self.resolution.as_vec3()
     }
 
     pub fn voxel_iclamp(&self, v: IVec3) -> IVec3 {
@@ -131,7 +131,7 @@ impl VoxelGrid {
 
         let t_delta = (local_ray_direction.length() / local_ray_direction).abs();
 
-        let mut t_max = (1.0 - (grid_origin * step.as_vec3a()).fract()) * t_delta;
+        let mut t_max = (1.0 - (grid_origin * step.as_vec3()).fract()) * t_delta;
 
         let mut closest_hit = Hit::none();
 

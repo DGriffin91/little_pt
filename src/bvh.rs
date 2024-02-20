@@ -1,5 +1,5 @@
 use crate::{aabb::Aabb, triangle::Triangle, Hit, Ray};
-use glam::Vec3A;
+use glam::Vec3;
 
 #[derive(Default, Clone)]
 pub struct Node {
@@ -47,7 +47,7 @@ pub fn build_recursive(
     node_count: &mut usize,
     prim_indices: &mut [usize],
     aabbs: &[Aabb],
-    centers: &[Vec3A],
+    centers: &[Vec3],
 ) {
     let mut node = bvh.nodes[node_index].clone();
     assert!(node.is_leaf());
@@ -114,7 +114,7 @@ pub fn build_recursive(
 }
 
 impl Bvh {
-    pub fn build(aabbs: &[Aabb], centers: &[Vec3A]) -> Bvh {
+    pub fn build(aabbs: &[Aabb], centers: &[Vec3]) -> Bvh {
         let mut prim_indices: Vec<usize> = (0..aabbs.len()).collect();
         let mut bvh = Bvh {
             nodes: Vec::with_capacity((2 * aabbs.len() as i64 - 1).max(0) as usize),

@@ -1,4 +1,4 @@
-use glam::{uvec2, vec2, vec3a, vec4, UVec2, Vec3A, Vec4Swizzles};
+use glam::{uvec2, vec2, vec3, vec4, UVec2, Vec3, Vec4Swizzles};
 use image::{ImageBuffer, Rgb};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use serde::{Deserialize, Serialize};
@@ -18,15 +18,15 @@ pub const EPSILON: f32 = 0.00001;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Camera {
-    pub eye: Vec3A,
-    pub dir: Vec3A,
+    pub eye: Vec3,
+    pub dir: Vec3,
     pub fov: f32,
     pub exposure: f32,
 }
 
 impl Camera {
     fn get_ray(&self, x: f32, y: f32, width: f32, height: f32) -> Ray {
-        let up = Vec3A::Y;
+        let up = Vec3::Y;
         let right = self.dir.cross(up).normalize();
 
         let aspect_ratio = width / height;
@@ -38,7 +38,7 @@ impl Camera {
     }
 }
 
-fn img_col_vec3(v: Vec3A) -> image::Rgb<u8> {
+fn img_col_vec3(v: Vec3) -> image::Rgb<u8> {
     image::Rgb([
         (v.x * 255.0) as u8,
         (v.y * 255.0) as u8,
@@ -66,7 +66,7 @@ pub fn render<F>(
     xy_pixel_vec
         .par_iter_mut()
         .for_each(|(center_x, center_y, pixel)| {
-            let mut col = Vec3A::ZERO;
+            let mut col = Vec3::ZERO;
 
             for i in 0..samples {
                 let xy_offset = vec2(
@@ -93,8 +93,8 @@ pub fn render<F>(
             }
             col /= samples as f32;
 
-            col *= Vec3A::splat(2.0).powf(scene.camera.exposure);
-            //let col = col / (col + Vec3A::ONE); // reinhard
+            col *= Vec3::splat(2.0).powf(scene.camera.exposure);
+            //let col = col / (col + Vec3::ONE); // reinhard
             //col = somewhat_boring_display_transform(col);
             col = tony_mc_mapface(col);
             col = col.powf(1.0 / 2.2); //Convert to SRGB
@@ -110,14 +110,14 @@ fn render_ray<F>(
     ray: Ray,
     materials: &[Material],
     recursion_depth: u32,
-) -> Vec3A
+) -> Vec3
 where
     F: Fn(&Ray) -> (Hit, Triangle) + Send + Sync,
 {
     let seed = (recursion_depth + 1) * (sample_n + 1);
-    let mut col = Vec3A::ZERO;
-    let sun_color = vec3a(1.0, 0.73, 0.46) * 1000000.0;
-    //let sky_color = (vec3a(0.875, 0.95, 0.995) * 2.0).powf(2.2);
+    let mut col = Vec3::ZERO;
+    let sun_color = vec3(1.0, 0.73, 0.46) * 1000000.0;
+    //let sky_color = (vec3(0.875, 0.95, 0.995) * 2.0).powf(2.2);
     let init_sun_dir = scene.sun_direction.normalize_or_zero();
 
     let nee = 1.0 - SUN_ANGULAR_DIAMETER.cos();
@@ -146,7 +146,7 @@ where
                 * nee
                 * primary_mat.base_color
                 * surface_normal.dot(-sun_dir).max(0.00001))
-            .max(Vec3A::ZERO);
+            .max(Vec3::ZERO);
         }
 
         if recursion_depth > 0 {
@@ -171,7 +171,7 @@ where
                 materials,
                 recursion_depth - 1,
             );
-            col += (diffuse_hit_color * primary_mat.base_color).max(Vec3A::ZERO);
+            col += (diffuse_hit_color * primary_mat.base_color).max(Vec3::ZERO);
 
             // Specular
             let wo = v;
@@ -192,7 +192,7 @@ where
                 materials,
                 recursion_depth - 1,
             );
-            col += (spec_hit_color * brdf_sample.value_over_pdf).max(Vec3A::ZERO);
+            col += (spec_hit_color * brdf_sample.value_over_pdf).max(Vec3::ZERO);
         }
     } else {
         //col += sky_color;
@@ -200,7 +200,7 @@ where
         // TODO, don't want to do this when sampling 1st bounce specular.
         col += Sky::red_sunset2()
             .render(ray.direction, -init_sun_dir)
-            .clamp(Vec3A::ZERO, Vec3A::splat(100.0));
+            .clamp(Vec3::ZERO, Vec3::splat(100.0));
     }
 
     col
@@ -212,7 +212,7 @@ pub fn render_normals<F>(
     height: f32,
     _samples: u32,
     cam: &Camera,
-    _sun_dir: &Vec3A,
+    _sun_dir: &Vec3,
     traverse_fn: F,
 ) where
     F: Fn(&Ray) -> (Hit, Triangle) + Send + Sync,
@@ -222,7 +222,7 @@ pub fn render_normals<F>(
     xy_pixel_vec
         .par_iter_mut()
         .for_each(|(center_x, center_y, pixel)| {
-            let mut col = Vec3A::ZERO;
+            let mut col = Vec3::ZERO;
 
             let (x, y) = (*center_x as f32, *center_y as f32);
 

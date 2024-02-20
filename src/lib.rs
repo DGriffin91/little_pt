@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use glam::{uvec3, vec3a, Vec2, Vec3A};
+use glam::{uvec3, vec3, Vec2, Vec3};
 use image::{ImageBuffer, Rgb};
 use obj::{Obj, ObjMaterial};
 use renderer::Camera;
@@ -29,19 +29,19 @@ pub fn safe_inverse(x: f32) -> f32 {
 
 #[derive(Clone, Copy, Debug)]
 pub struct Ray {
-    pub origin: Vec3A,
-    pub direction: Vec3A,
-    pub inv_direction: Vec3A,
+    pub origin: Vec3,
+    pub direction: Vec3,
+    pub inv_direction: Vec3,
     pub tmin: f32,
     pub tmax: f32,
 }
 
 impl Ray {
-    pub fn new(origin: Vec3A, direction: Vec3A, min: f32, max: f32) -> Self {
+    pub fn new(origin: Vec3, direction: Vec3, min: f32, max: f32) -> Self {
         Ray {
             origin,
             direction,
-            inv_direction: vec3a(
+            inv_direction: vec3(
                 safe_inverse(direction.x),
                 safe_inverse(direction.y),
                 safe_inverse(direction.z),
@@ -73,10 +73,10 @@ impl Hit {
 
 #[derive(Debug)]
 pub struct Material {
-    pub base_color: Vec3A,
+    pub base_color: Vec3,
     pub perceptual_roughness: f32,
     pub roughness: f32,
-    pub f0: Vec3A,
+    pub f0: Vec3,
     pub metallic: f32,
 }
 
@@ -89,7 +89,7 @@ impl Material {
                 let metallic = if (3..=8).contains(&illum) { 1.0 } else { 0.0 };
                 let clamped_ns = mtl.ns.unwrap_or(250.0).clamp(0.0, 1000.0);
                 let perceptual_roughness = 1.0 - (clamped_ns / 1000.0).sqrt();
-                let base_color = Vec3A::from(mtl.kd.unwrap_or([0.5; 3])).max(Vec3A::ZERO);
+                let base_color = Vec3::from(mtl.kd.unwrap_or([0.5; 3])).max(Vec3::ZERO);
                 Material {
                     base_color,
                     perceptual_roughness,
@@ -105,11 +105,11 @@ impl Material {
 impl Default for Material {
     fn default() -> Self {
         Material {
-            base_color: Vec3A::splat(0.5),
+            base_color: Vec3::splat(0.5),
             perceptual_roughness: 0.5,
             metallic: 0.0,
             roughness: perceptual_roughness_to_roughness(0.5),
-            f0: get_f0(0.5, 0.0, Vec3A::splat(0.5)),
+            f0: get_f0(0.5, 0.0, Vec3::splat(0.5)),
         }
     }
 }
@@ -118,7 +118,7 @@ impl Default for Material {
 pub struct Scene {
     pub model_path: String,
     pub camera: Camera,
-    pub sun_direction: Vec3A,
+    pub sun_direction: Vec3,
 }
 
 impl Scene {

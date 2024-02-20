@@ -1,16 +1,16 @@
 use std::sync::Once;
 
 use bytemuck::cast_slice;
-use glam::{vec3a, Mat3A, UVec3, Vec3, Vec3A, Vec3Swizzles};
+use glam::{vec3, Mat3, UVec3, Vec3, Vec3Swizzles};
 use shared_exponent_formats::rgb9e5;
 
 use crate::d3_image::Image;
 
-fn rgb_to_ycbcr(col: Vec3A) -> Vec3A {
-    let m = Mat3A {
-        x_axis: vec3a(0.2126, -0.1146, 0.5),
-        y_axis: vec3a(0.7152, -0.3854, -0.4542),
-        z_axis: vec3a(0.0722, 0.5, -0.0458),
+fn rgb_to_ycbcr(col: Vec3) -> Vec3 {
+    let m = Mat3 {
+        x_axis: vec3(0.2126, -0.1146, 0.5),
+        y_axis: vec3(0.7152, -0.3854, -0.4542),
+        z_axis: vec3(0.0722, 0.5, -0.0458),
     };
 
     m * col
@@ -20,17 +20,17 @@ fn tonemap_curve(v: f32) -> f32 {
     1.0 - (-v).exp()
 }
 
-fn tonemap_curve3(v: Vec3A) -> Vec3A {
+fn tonemap_curve3(v: Vec3) -> Vec3 {
     1.0 - (-v).exp()
 }
 
-fn tonemapping_luminance(col: Vec3A) -> f32 {
+fn tonemapping_luminance(col: Vec3) -> f32 {
     // Replace this with your actual implementation for calculating luminance.
     // This is just a placeholder.
-    col.dot(vec3a(0.2126, 0.7152, 0.0722))
+    col.dot(vec3(0.2126, 0.7152, 0.0722))
 }
 
-pub fn somewhat_boring_display_transform(col: Vec3A) -> Vec3A {
+pub fn somewhat_boring_display_transform(col: Vec3) -> Vec3 {
     let mut col = col;
     let ycbcr = rgb_to_ycbcr(col);
 
@@ -52,7 +52,7 @@ pub fn somewhat_boring_display_transform(col: Vec3A) -> Vec3A {
 
 // https://github.com/h3r2tic/tony-mc-mapface
 
-pub fn tony_mc_mapface(stimulus: Vec3A) -> Vec3A {
+pub fn tony_mc_mapface(stimulus: Vec3) -> Vec3 {
     // Apply a non-linear transform that the LUT is encoded with.
     let encoded = stimulus / (stimulus + 1.0);
 
