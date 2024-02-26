@@ -1,6 +1,6 @@
 use std::f32::consts::{PI, TAU};
 
-use glam::{mat3a, vec3a, Mat3A, UVec2, Vec2, Vec3A};
+use glam::{mat3a, vec2, vec3a, Mat3A, UVec2, Vec2, Vec3A};
 
 pub fn uhash(a: u32, b: u32) -> u32 {
     let mut x = (a.overflowing_mul(1597334673u32).0) ^ (b.overflowing_mul(3812015801u32).0);
@@ -112,10 +112,10 @@ pub fn powsafe(color: Vec3A, power: f32) -> Vec3A {
 // https://arxiv.org/pdf/2306.05044.pdf
 
 // Helper function: sample the visible hemisphere from a spherical cap
-fn sample_vndf_hemisphere(u: Vec2, wi: Vec3A) -> Vec3A {
+fn sample_vndf_hemisphere(urand: Vec2, wi: Vec3A, b: f32) -> Vec3A {
     // sample a spherical cap in (-wi.z, 1]
-    let phi = 2.0 * PI * u.x;
-    let z = (1.0 - u.y) * (1.0 + wi.z) - wi.z;
+    let phi = 2.0 * PI * urand.x;
+    let z = (1.0 - urand.y) * (1.0 + b) - b;
     let sin_theta = (1.0 - z * z).clamp(0.0, 1.0).sqrt();
     let x = sin_theta * phi.cos();
     let y = sin_theta * phi.sin();
@@ -128,11 +128,20 @@ fn sample_vndf_hemisphere(u: Vec2, wi: Vec3A) -> Vec3A {
 
 // Sample the GGX VNDF
 fn sample_vndf_ggx(urand: Vec2, wi: Vec3A, alpha: Vec2) -> Vec3A {
-    let u = Vec2::new(urand.y, urand.x);
+    let urand = Vec2::new(urand.y, urand.x);
     // warp to the hemisphere configuration
     let wi_std = Vec3A::new(wi.x * alpha.x, wi.y * alpha.y, wi.z).normalize();
+
+    // https://gpuopen.com/download/publications/Bounded_VNDF_Sampling_for_Smith-GGX_Reflections.pdf
+    let a = alpha.x.min(alpha.y).clamp(0.0, 1.0); // Eq . 6
+    let s = 1.0 + vec2(wi.x, wi.y).length(); // Omit sgn for a <=1
+    let a2 = a * a;
+    let s2 = s * s;
+    let k = (1.0 - a2) * s2 / (s2 + a2 * wi.z * wi.z); // Eq . 5
+    let b = if wi.z > 0.0 { k * wi_std.z } else { wi_std.z };
+
     // sample the hemisphere
-    let wm_std = sample_vndf_hemisphere(u, wi_std);
+    let wm_std = sample_vndf_hemisphere(urand, wi_std, b);
     // warp back to the ellipsoid configuration
     let wm = Vec3A::new(wm_std.x * alpha.x, wm_std.y * alpha.y, wm_std.z).normalize();
     // return final normal
@@ -157,6 +166,19 @@ pub struct BrdfSample {
     pub transmission_fraction: Vec3A,
     pub wi: Vec3A,
     pub approx_roughness: f32,
+}
+
+impl BrdfSample {
+    pub fn invalid() -> Self {
+        BrdfSample {
+            value_over_pdf: Vec3A::ZERO,
+            value: Vec3A::ZERO,
+            pdf: 0.0,
+            transmission_fraction: Vec3A::ZERO,
+            wi: Vec3A::new(0.0, 0.0, -1.0),
+            approx_roughness: 0.0,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -212,14 +234,7 @@ pub fn brdf_sample(roughness: f32, f0: Vec3A, wo: Vec3A, urand: Vec2) -> BrdfSam
         || wi.z <= BRDF_SAMPLING_MIN_COS
         || wo.z <= BRDF_SAMPLING_MIN_COS
     {
-        return BrdfSample {
-            value_over_pdf: Vec3A::ZERO,
-            value: Vec3A::ZERO,
-            pdf: 0.0,
-            transmission_fraction: Vec3A::ZERO,
-            wi: Vec3A::new(0.0, 0.0, -1.0),
-            approx_roughness: 0.0,
-        };
+        return BrdfSample::invalid();
     }
 
     let jacobian = 1.0 / (4.0 * wi.dot(ndf_sample.m));
