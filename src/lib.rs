@@ -1,16 +1,17 @@
 use std::time::Instant;
 
-use glam::{uvec3, vec3a, Vec2, Vec3A};
+use glam::{vec3a, Vec2, Vec3A};
 use image::{ImageBuffer, Rgb};
 use obj::{Obj, ObjMaterial};
 use renderer::Camera;
 use sampling::{get_f0, perceptual_roughness_to_roughness};
 use serde::{Deserialize, Serialize};
 
-use crate::{aabb::Aabb, renderer::render, triangle::Triangle, voxel_bvh::VoxelGrid};
+use crate::{aabb::Aabb, bvh2::Bvh2, bvh8::Bvh8Node, renderer::render, triangle::Triangle};
 
 pub mod aabb;
-pub mod bvh;
+pub mod bvh2;
+pub mod bvh8;
 pub mod d3_image;
 pub mod renderer;
 pub mod sampling;
@@ -179,7 +180,8 @@ impl Scene {
         let mut imgbuf = image::ImageBuffer::new(width as u32, height as u32);
 
         let build_time = Instant::now();
-        let bvh2 = VoxelGrid::build(&aabbs, &centers, uvec3(12, 12, 12));
+        let bvh2 = Bvh2::build(&aabbs, &centers);
+        let bvh8 = Bvh8Node::from_bvh2(&bvh2);
         println!("Build BVH: {:?}", build_time.elapsed());
 
         let trace_time = Instant::now();
@@ -191,7 +193,9 @@ impl Scene {
             self,
             &materials,
             |ray: &Ray| {
-                let mut hit = bvh2.traverse(ray, &tris);
+                //let mut hit = bvh2.traverse(ray, &tris);
+                let mut hit = Hit::none();
+                bvh8.traverse_recursive(ray, &tris, &mut hit);
                 let prim_index = hit.prim_index as usize;
                 let tri = if hit.distance < f32::MAX {
                     hit.material_index = material_indices[prim_index];

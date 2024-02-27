@@ -1,10 +1,10 @@
 use glam::{IVec3, UVec3, Vec3A};
 use rayon::prelude::{IndexedParallelIterator, IntoParallelRefMutIterator, ParallelIterator};
 
-use crate::{aabb::Aabb, bvh::Bvh, triangle::Triangle, Hit, Ray};
+use crate::{aabb::Aabb, bvh2::Bvh2, triangle::Triangle, Hit, Ray};
 
 pub struct VoxelGrid {
-    pub voxels: Vec<Bvh>,
+    pub voxels: Vec<Bvh2>,
     pub aabb: Aabb,
     pub aabb_size: Vec3A,
     pub voxel_size: Vec3A,
@@ -28,7 +28,7 @@ impl VoxelGrid {
         };
 
         let mut voxels =
-            vec![Bvh::default(); (resolution.x * resolution.y * resolution.z) as usize];
+            vec![Bvh2::default(); (resolution.x * resolution.y * resolution.z) as usize];
 
         voxels
             .par_iter_mut()
@@ -47,7 +47,7 @@ impl VoxelGrid {
                         this_voxel_centers.push(*center);
                     }
                 }
-                let mut bvh = Bvh::build(&this_voxel_aabbs, &this_voxel_centers);
+                let mut bvh = Bvh2::build(&this_voxel_aabbs, &this_voxel_centers);
                 if !bvh.nodes.is_empty() {
                     for i in 0..bvh.nodes.len() {
                         if bvh.nodes[i].is_leaf() {

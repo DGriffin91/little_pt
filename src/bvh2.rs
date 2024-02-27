@@ -2,13 +2,16 @@ use crate::{aabb::Aabb, triangle::Triangle, Hit, Ray};
 use glam::Vec3A;
 
 #[derive(Default, Clone)]
-pub struct Node {
+pub struct Bvh2Node {
     pub aabb: Aabb,
-    pub prim_count: u32, // Not needed for rendering. Could make a smaller node just for rendering.
+    pub prim_count: u32,
     pub first_index: u32,
 }
 
-impl Node {
+const MIN_PRIMS: u32 = 1;
+const MAX_PRIMS: u32 = 3;
+
+impl Bvh2Node {
     pub fn new(aabb: Aabb, prim_count: u32, first_index: u32) -> Self {
         Self {
             aabb,
@@ -24,11 +27,12 @@ impl Node {
 }
 
 #[derive(Clone, Default)]
-pub struct Bvh {
-    pub nodes: Vec<Node>,
+pub struct Bvh2 {
+    pub nodes: Vec<Bvh2Node>,
+    pub prim_indices: Vec<u32>,
 }
 
-impl Bvh {
+impl Bvh2 {
     pub fn depth(&self, node_index: usize) -> usize {
         let node = &self.nodes[node_index];
         if node.is_leaf() {
@@ -42,10 +46,9 @@ impl Bvh {
 }
 
 pub fn build_recursive(
-    bvh: &mut Bvh,
+    bvh: &mut Bvh2,
     node_index: usize,
     node_count: &mut usize,
-    prim_indices: &mut [usize],
     aabbs: &[Aabb],
     centers: &[Vec3A],
 ) {
@@ -56,20 +59,20 @@ pub fn build_recursive(
     let mut centers_aabb = Aabb::empty();
     let first_index = node.first_index as usize;
     for i in 0..node.prim_count as usize {
-        let prim_index = prim_indices[first_index + i];
-        node.aabb.extend_aabb(&aabbs[prim_index]);
-        centers_aabb.extend(centers[prim_index]);
+        let prim_index = bvh.prim_indices[first_index + i];
+        node.aabb.extend_aabb(&aabbs[prim_index as usize]);
+        centers_aabb.extend(centers[prim_index as usize]);
     }
 
     let centers_lg_axis = centers_aabb.largest_axis();
 
-    if node.prim_count <= 1 {
+    if node.prim_count <= MIN_PRIMS {
         bvh.nodes[node_index] = node;
         return;
     }
 
     // Global index of the first primitive in the right child
-    let first_right = if node.prim_count > 1 {
+    let first_right = if node.prim_count > MAX_PRIMS {
         // Median split
 
         // was node.aabb.largest_axis(), centers_lg_axis seems faster,
@@ -77,9 +80,13 @@ pub fn build_recursive(
         let axis = centers_lg_axis;
 
         // Sort the primitive indices in place
-        let prim_indices = &mut prim_indices[first_index..first_index + node.prim_count as usize];
-        prim_indices
-            .sort_unstable_by(|&i, &j| centers[i][axis].partial_cmp(&centers[j][axis]).unwrap());
+        let prim_indices =
+            &mut bvh.prim_indices[first_index..first_index + node.prim_count as usize];
+        prim_indices.sort_unstable_by(|&i, &j| {
+            centers[i as usize][axis]
+                .partial_cmp(&centers[j as usize][axis])
+                .unwrap()
+        });
         // put first_right half way though set of indices
         first_index + node.prim_count as usize / 2
     } else {
@@ -102,55 +109,36 @@ pub fn build_recursive(
 
     bvh.nodes[node_index] = node;
 
-    build_recursive(bvh, first_child, node_count, prim_indices, aabbs, centers);
-    build_recursive(
-        bvh,
-        first_child + 1,
-        node_count,
-        prim_indices,
-        aabbs,
-        centers,
-    );
+    build_recursive(bvh, first_child, node_count, aabbs, centers);
+    build_recursive(bvh, first_child + 1, node_count, aabbs, centers);
 }
 
-impl Bvh {
-    pub fn build(aabbs: &[Aabb], centers: &[Vec3A]) -> Bvh {
-        let mut prim_indices: Vec<usize> = (0..aabbs.len()).collect();
-        let mut bvh = Bvh {
+impl Bvh2 {
+    pub fn build(aabbs: &[Aabb], centers: &[Vec3A]) -> Bvh2 {
+        let mut bvh = Bvh2 {
             nodes: Vec::with_capacity((2 * aabbs.len() as i64 - 1).max(0) as usize),
+            prim_indices: (0..aabbs.len() as u32).collect(),
         };
 
         let prim_count = (aabbs.len()) as u32;
 
-        bvh.nodes
-            .resize((2 * prim_count as i64 - 1).max(0) as usize, Node::default());
+        bvh.nodes.resize(
+            (2 * prim_count as i64 - 1).max(0) as usize,
+            Bvh2Node::default(),
+        );
 
         if bvh.nodes.is_empty() {
             bvh
         } else {
-            bvh.nodes[0] = Node {
+            bvh.nodes[0] = Bvh2Node {
                 aabb: Aabb::empty(),
                 prim_count,
                 first_index: 0,
             };
 
             let mut node_count = 1;
-            build_recursive(
-                &mut bvh,
-                0,
-                &mut node_count,
-                &mut prim_indices,
-                aabbs,
-                centers,
-            );
-            bvh.nodes.resize(node_count, Node::default());
-
-            for i in 0..bvh.nodes.len() {
-                if bvh.nodes[i].is_leaf() {
-                    bvh.nodes[i].first_index =
-                        prim_indices[bvh.nodes[i].first_index as usize] as u32;
-                }
-            }
+            build_recursive(&mut bvh, 0, &mut node_count, aabbs, centers);
+            bvh.nodes.resize(node_count, Bvh2Node::default());
 
             bvh
         }
@@ -168,13 +156,18 @@ impl Bvh {
             }
 
             if node.is_leaf() {
-                let prim_index = node.first_index as usize;
-                let (hit_dist, uv) = prims[prim_index].intersect(ray);
-                if hit_dist < min_dist {
-                    hit.prim_index = prim_index as u32;
-                    hit.distance = hit_dist;
-                    hit.uv = uv;
-                    min_dist = hit_dist;
+                for i in 0..node.prim_count {
+                    let prim_index = self.prim_indices[(node.first_index + i) as usize];
+                    if prim_index == u32::MAX {
+                        continue;
+                    }
+                    let (hit_dist, uv) = prims[prim_index as usize].intersect(ray);
+                    if hit_dist < min_dist {
+                        hit.prim_index = prim_index as u32;
+                        hit.distance = hit_dist;
+                        hit.uv = uv;
+                        min_dist = hit_dist;
+                    }
                 }
             } else {
                 stack.push(node.first_index as usize);
