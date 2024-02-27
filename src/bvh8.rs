@@ -1,5 +1,7 @@
 use std::array;
 
+use glam::{vec3a, Vec3A};
+
 use crate::{
     aabb::Aabb,
     bvh2::{Bvh2, Bvh2Node},
@@ -115,6 +117,84 @@ impl Bvh8Node {
         }
 
         *node = Bvh8Node::Inner(children);
+    }
+
+    pub fn order_subtree(&mut self, self_bounds: &Aabb) {
+        if let Bvh8Node::Inner(children) = self {
+            Bvh8Node::order_children(children, self_bounds);
+            for child in children {
+                if let Some(node) = child.node.as_mut() {
+                    node.order_subtree(&child.bounds);
+                }
+            }
+        }
+    }
+
+    // Based on https://github.com/jan-van-bergen/GPU-Raytracer/blob/33896a93c3772b8f81719a9b4441f44f87a4a50e/Src/BVH/Builders/CWBVHBuilder.cpp#L155
+    fn order_children(children: &mut [Child; 8], self_bounds: &Aabb) {
+        let p = self_bounds.center();
+
+        let mut cost = [[0.0_f32; 8]; BRANCHING];
+
+        // Corresponds directly to the number of bit patterns we're creating
+        const DIRECTIONS: usize = 8;
+
+        // Fill cost table
+        for (c, child) in children.iter().enumerate() {
+            for s in 0..DIRECTIONS {
+                let direction = vec3a(
+                    if (s & 0b100) != 0 { -1.0 } else { 1.0 },
+                    if (s & 0b010) != 0 { -1.0 } else { 1.0 },
+                    if (s & 0b001) != 0 { -1.0 } else { 1.0 },
+                );
+
+                cost[c][s] = Vec3A::dot(child.bounds.center() - p, direction);
+            }
+        }
+
+        const INVALID: u32 = !0;
+
+        let mut assignment = [INVALID; BRANCHING];
+        let mut slot_filled = [false; DIRECTIONS];
+
+        // The paper suggests the auction method, but greedy is almost as good.
+        loop {
+            let mut min_cost = f32::MAX;
+
+            let mut min_slot = INVALID;
+            let mut min_index = INVALID;
+
+            // Find cheapest unfilled slot of any unassigned child
+            for c in 0..children.len() {
+                if assignment[c] == INVALID {
+                    for (s, &slot_filled) in slot_filled.iter().enumerate() {
+                        if !slot_filled && cost[c][s] < min_cost {
+                            min_cost = cost[c][s];
+
+                            min_slot = s as _;
+                            min_index = c as _;
+                        }
+                    }
+                }
+            }
+
+            if min_slot == INVALID {
+                break;
+            }
+
+            slot_filled[min_slot as usize] = true;
+            assignment[min_index as usize] = min_slot;
+        }
+
+        // Permute children array according to assignment
+        let original_order = std::mem::replace(children, array::from_fn(|_| Child::default()));
+
+        let mut child_assigned = [false; BRANCHING];
+        for (assignment, new_value) in assignment.into_iter().zip(original_order.into_iter()) {
+            children[assignment as usize] = new_value;
+            child_assigned[assignment as usize] = true;
+        }
+        assert_eq!(child_assigned, [true; BRANCHING]);
     }
 
     pub fn traverse_recursive(&self, ray: &Ray, prims: &[Triangle], hit: &mut Hit) {

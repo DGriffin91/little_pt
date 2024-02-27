@@ -181,7 +181,8 @@ impl Scene {
 
         let build_time = Instant::now();
         let bvh2 = Bvh2::build(&aabbs, &centers);
-        let bvh8 = Bvh8Node::from_bvh2(&bvh2);
+        let mut bvh8 = Bvh8Node::from_bvh2(&bvh2);
+        bvh8.order_subtree(&bvh2.nodes[0].aabb);
         println!("Build BVH: {:?}", build_time.elapsed());
 
         let trace_time = Instant::now();
