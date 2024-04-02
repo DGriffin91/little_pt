@@ -15,7 +15,7 @@ impl VoxelGrid {
     pub fn build(aabbs: &[Aabb], centers: &[Vec3A], resolution: UVec3) -> VoxelGrid {
         let mut gridaabb = Aabb::empty();
         for aabb in aabbs.iter() {
-            gridaabb.extend_aabb(aabb);
+            gridaabb = gridaabb.union(aabb);
         }
 
         let aabb_size = gridaabb.diagonal();
@@ -107,7 +107,7 @@ impl VoxelGrid {
     pub fn traverse(&self, ray: &Ray, prims: &[Triangle]) -> Hit {
         let mut ray = *ray;
         let ires = self.resolution.as_ivec3();
-        let aabb_hit = self.aabb.intersect(&ray);
+        let aabb_hit = self.aabb.ray_intersect(&ray);
         if aabb_hit > ray.tmax {
             return Hit::none();
         }
@@ -195,7 +195,7 @@ impl VoxelGrid {
 
         for i in 0..self.voxels.len() {
             let voxel_aabb = self.pos_to_aabb(self.voxel_idx_to_pos(i));
-            let t = voxel_aabb.intersect(&ray);
+            let t = voxel_aabb.ray_intersect(&ray);
             if t < f32::MAX {
                 voxels.push((i, voxels.len()));
                 voxelcenters.push(voxel_aabb.center());
