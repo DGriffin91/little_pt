@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     sampling::{
         brdf_sample, build_orthonormal_basis, cosine_sample_hemisphere, hash_noise,
-        uniform_sample_cone,
+        uniform_sample_cone, BrdfSample,
     },
     sky::{Sky, SUN_ANGULAR_DIAMETER},
     tonemapping::tony_mc_mapface,
@@ -175,13 +175,25 @@ where
 
             // Specular
             let wo = v;
-            let brdf_sample = brdf_sample(
-                primary_mat.roughness,
-                primary_mat.f0,
-                tangent_to_world_transpose * wo,
-                urand.zw(),
-            );
-            let spec_dir = tangent_to_world * brdf_sample.wi;
+            let mut brdf_s = BrdfSample::invalid();
+            // VNDF still returns a lot of invalid samples on rough surfaces at F0 angles!
+            // https://github.com/EmbarkStudios/kajiya/blob/d373f76b8a2bff2023c8f92b911731f8eb49c6a9/assets/shaders/rtr/reflection.rgen.hlsl#L107
+            for _ in 0..4 {
+                brdf_s = brdf_sample(
+                    primary_mat.roughness,
+                    primary_mat.f0,
+                    tangent_to_world_transpose * wo,
+                    urand.zw(),
+                );
+                if brdf_s.wi.z > 0.000001 {
+                    break;
+                }
+            }
+            if !brdf_s.wi.is_finite() {
+                return col;
+            }
+
+            let spec_dir = tangent_to_world * brdf_s.wi;
             let spec_ray = Ray::new(primary_hitp, spec_dir, 0.0, f32::MAX);
             let spec_hit_color = render_ray(
                 ufragcoord,
@@ -192,7 +204,7 @@ where
                 materials,
                 recursion_depth - 1,
             );
-            col += (spec_hit_color * brdf_sample.value_over_pdf).max(Vec3A::ZERO);
+            col += (spec_hit_color * brdf_s.value_over_pdf).max(Vec3A::ZERO);
         }
     } else {
         //col += sky_color;

@@ -1,4 +1,4 @@
-//cargo run -- -f scenes/san-miguel.ron -o rend.png
+//cargo run -- -f assets/scenes/kitchen.ron -o rend.png
 
 pub const EPSILON: f32 = 0.00001;
 
