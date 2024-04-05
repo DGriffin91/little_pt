@@ -7,17 +7,23 @@ use renderer::Camera;
 use sampling::{get_f0, perceptual_roughness_to_roughness};
 use serde::{Deserialize, Serialize};
 
-use crate::{aabb::Aabb, renderer::render, triangle::Triangle, voxel_bvh::VoxelGrid};
+use crate::{
+    aabb::Aabb,
+    bvh2::Bvh2,
+    renderer::render,
+    svenstaro::{svenstaro_bbox_shapes, traverse_svenstaro},
+    triangle::Triangle,
+};
 
 pub mod aabb;
-pub mod bvh;
+pub mod bvh2;
 pub mod d3_image;
 pub mod renderer;
 pub mod sampling;
 pub mod sky;
+pub mod svenstaro;
 pub mod tonemapping;
 pub mod triangle;
-pub mod voxel_bvh;
 
 pub fn safe_inverse(x: f32) -> f32 {
     if x.abs() <= f32::EPSILON {
@@ -178,8 +184,10 @@ impl Scene {
 
         let mut imgbuf = image::ImageBuffer::new(width as u32, height as u32);
 
+        let mut shapes = svenstaro_bbox_shapes(&tris);
         let build_time = Instant::now();
-        let bvh2 = VoxelGrid::build(&aabbs, &centers, uvec3(12, 12, 12));
+        //let bvh2 = Bvh2::build(&aabbs, &centers);
+        let bvh2 = bvh::bvh::Bvh::build(&mut shapes);
         println!("Build BVH: {:?}", build_time.elapsed());
 
         let trace_time = Instant::now();
@@ -191,7 +199,8 @@ impl Scene {
             self,
             &materials,
             |ray: &Ray| {
-                let mut hit = bvh2.traverse(ray, &tris);
+                //let mut hit = bvh2.traverse(ray, &tris);
+                let mut hit = traverse_svenstaro(&bvh2, &shapes, ray);
                 let prim_index = hit.prim_index as usize;
                 let tri = if hit.distance < f32::MAX {
                     hit.material_index = material_indices[prim_index];
