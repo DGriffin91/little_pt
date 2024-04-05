@@ -24,11 +24,11 @@ impl Node {
 }
 
 #[derive(Clone, Default)]
-pub struct Bvh2 {
+pub struct Bvh {
     pub nodes: Vec<Node>,
 }
 
-impl Bvh2 {
+impl Bvh {
     pub fn depth(&self, node_index: usize) -> usize {
         let node = &self.nodes[node_index];
         if node.is_leaf() {
@@ -42,7 +42,7 @@ impl Bvh2 {
 }
 
 pub fn build_recursive(
-    bvh: &mut Bvh2,
+    bvh: &mut Bvh,
     node_index: usize,
     node_count: &mut usize,
     prim_indices: &mut [usize],
@@ -113,10 +113,10 @@ pub fn build_recursive(
     );
 }
 
-impl Bvh2 {
-    pub fn build(aabbs: &[Aabb], centers: &[Vec3A]) -> Bvh2 {
+impl Bvh {
+    pub fn build(aabbs: &[Aabb], centers: &[Vec3A]) -> Bvh {
         let mut prim_indices: Vec<usize> = (0..aabbs.len()).collect();
-        let mut bvh = Bvh2 {
+        let mut bvh = Bvh {
             nodes: Vec::with_capacity((2 * aabbs.len() as i64 - 1).max(0) as usize),
         };
 

@@ -16,10 +16,6 @@ clap = { version = "4.4.1", features = ["derive"] }
 ddsfile = "0.5.1"
 bytemuck = "1.13.1"
 shared_exponent_formats = { git = "https://github.com/DGriffin91/shared_exponent_formats" }
-bvh = { git = "https://github.com/dbenson24/bvh/", branch = "parallel-build", features = [
-    "rayon",
-] }
-nalgebra = { version = "0.32.2", features = ["default"] }
 
 # Enable optimization in debug mode
 [profile.dev]
