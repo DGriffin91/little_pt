@@ -149,6 +149,19 @@ pub struct BrdfSample {
     pub approx_roughness: f32,
 }
 
+impl BrdfSample {
+    pub fn invalid() -> Self {
+        BrdfSample {
+            value_over_pdf: Vec3A::ZERO,
+            value: Vec3A::ZERO,
+            pdf: 0.0,
+            transmission_fraction: Vec3A::ZERO,
+            wi: Vec3A::new(0.0, 0.0, -1.0),
+            approx_roughness: 0.0,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct SmithShadowingMasking {
     pub g: f32,

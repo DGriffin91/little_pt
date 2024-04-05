@@ -4,13 +4,29 @@ use glam::Vec3A;
 
 use crate::Ray;
 
-#[derive(Default, Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug, PartialEq)]
 pub struct Aabb {
     pub min: Vec3A,
     pub max: Vec3A,
 }
 
 impl Aabb {
+    /// Empty AABB
+    pub const INVALID: Self = Self {
+        min: Vec3A::splat(f32::MAX),
+        max: Vec3A::splat(f32::MIN),
+    };
+
+    pub const LARGEST: Self = Self {
+        min: Vec3A::splat(-f32::MAX),
+        max: Vec3A::splat(f32::MAX),
+    };
+
+    pub const INFINITY: Self = Self {
+        min: Vec3A::splat(-f32::INFINITY),
+        max: Vec3A::splat(f32::INFINITY),
+    };
+
     pub fn new(min: Vec3A, max: Vec3A) -> Self {
         Self { min, max }
     }
@@ -22,27 +38,47 @@ impl Aabb {
         }
     }
 
+    pub fn from_points(points: &[Vec3A]) -> Self {
+        let mut points = points.iter();
+        let mut aabb = Aabb::from_point(*points.next().unwrap());
+        for point in points {
+            aabb.extend(*point);
+        }
+        aabb
+    }
+
     pub fn contains_point(&self, point: Vec3A) -> bool {
         (point.cmpge(self.min).bitand(point.cmple(self.max))).all()
     }
 
     #[inline]
     pub fn extend(&mut self, point: Vec3A) -> &mut Self {
-        self.extend_aabb(&Self::from_point(point))
-    }
-
-    #[inline]
-    pub fn extend_aabb(&mut self, other: &Self) -> &mut Self {
-        self.min = self.min.min(other.min);
-        self.max = self.max.max(other.max);
+        *self = self.union(&Self::from_point(point));
         self
     }
 
     #[inline]
-    pub fn clamp_aabb(&mut self, other: &Self) -> &mut Self {
-        self.min = self.min.max(other.min);
-        self.max = self.max.min(other.max);
-        self
+    pub fn union(&self, other: &Self) -> Self {
+        Aabb {
+            min: self.min.min(other.min),
+            max: self.max.max(other.max),
+        }
+    }
+
+    #[inline]
+    pub fn intersection(&self, other: &Self) -> Self {
+        Aabb {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
+        }
+    }
+
+    #[inline]
+    pub fn clamp_aabb(&self, other: &Self) -> Self {
+        Aabb {
+            min: self.min.max(other.min),
+            max: self.max.min(other.max),
+        }
     }
 
     #[inline]
@@ -76,11 +112,29 @@ impl Aabb {
         }
     }
 
+    #[inline]
+    pub fn smallest_axis(&self) -> usize {
+        let d = self.diagonal();
+        if d.x > d.y {
+            if d.y > d.z {
+                2
+            } else {
+                1
+            }
+        } else if d.x > d.z {
+            2
+        } else {
+            0
+        }
+    }
+
+    #[inline]
     pub fn half_area(&self) -> f32 {
         let d = self.diagonal();
         (d.x + d.y) * d.z + d.x * d.y
     }
 
+    #[inline]
     pub fn surface_area(&self) -> f32 {
         let d = self.diagonal();
         2.0 * d.dot(d)
@@ -93,7 +147,11 @@ impl Aabb {
         }
     }
 
-    pub fn intersect(&self, ray: &Ray) -> f32 {
+    pub fn aabb_intersect(&self, other: &Aabb) -> bool {
+        !(self.min.cmpgt(other.max).any() || self.max.cmplt(other.min).any())
+    }
+
+    pub fn ray_intersect(&self, ray: &Ray) -> f32 {
         let t1 = (self.min - ray.origin) * ray.inv_direction;
         let t2 = (self.max - ray.origin) * ray.inv_direction;
 
@@ -108,10 +166,6 @@ impl Aabb {
         } else {
             f32::MAX
         }
-    }
-
-    pub fn aabb_intersect(&self, other: &Aabb) -> bool {
-        !(self.min.cmpgt(other.max).any() || self.max.cmplt(other.min).any())
     }
 }
 

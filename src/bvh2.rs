@@ -57,7 +57,7 @@ pub fn build_recursive(
     let first_index = node.first_index as usize;
     for i in 0..node.prim_count as usize {
         let prim_index = prim_indices[first_index + i];
-        node.aabb.extend_aabb(&aabbs[prim_index]);
+        node.aabb = node.aabb.union(&aabbs[prim_index]);
         centers_aabb.extend(centers[prim_index]);
     }
 
@@ -163,7 +163,7 @@ impl Bvh2 {
         let mut min_dist = ray.tmax;
         while let Some(current_node_index) = stack.pop() {
             let node = &self.nodes[current_node_index];
-            if node.aabb.intersect(ray) >= min_dist {
+            if node.aabb.ray_intersect(ray) >= min_dist {
                 continue;
             }
 
@@ -192,7 +192,7 @@ impl Bvh2 {
             let prim_index = node.first_index as usize;
             indices.push(prim_index);
         } else {
-            if node.aabb.intersect(ray) < f32::MAX {
+            if node.aabb.ray_intersect(ray) < f32::MAX {
                 self.traverse_recursive(ray, node.first_index as usize, indices);
                 self.traverse_recursive(ray, node.first_index as usize + 1, indices);
             }
